@@ -241,16 +241,18 @@ The data source layer provides raw observations.
 - NASA FIRMS
 - VIIRS
 - MODIS
+- Sentinel-3 SLSTR for complementary thermal and optical observations
 
 #### Optical
 
 - Sentinel-2
 - Landsat
+- NASA GIBS / Worldview for satellite visualization
 
 #### Geospatial
 
 - Industrial facility datasets
-- Land-cover datasets
+- Land-cover datasets such as ESA WorldCover
 - OpenStreetMap
 - Administrative boundaries
 - Optional population datasets
@@ -304,6 +306,42 @@ Observation region
 NASA FIRMS API keys must be supplied through server-side environment variables or a secrets manager. They must never be exposed in frontend code, user-visible URLs, logs, or database records. Each ingestion run should record the provider, product, acquisition time, retrieval time, coverage, and API response status.
 
 If INSAT is temporarily unavailable, FIRMS/VIIRS may be used as an India fallback, with the source and reduced coverage clearly labelled. Provider failures must trigger retries and preserve the last successful ingestion timestamp so stale observations are not presented as real time.
+
+## 6.2 Cached Provider Access and Rate Limits
+
+External providers must be accessed through scheduled backend ingestion, caching, and database/object-storage layers:
+
+```text
+Provider API / service
+          ↓
+Backend source adapter
+          ↓
+Validated cache and PostGIS/object storage
+          ↓
+Authenticated application users
+```
+
+The frontend must not call NASA FIRMS, GIBS, or other provider services separately for every user or map interaction. Ingestion jobs should respect provider rate limits, use bounded retries with backoff, deduplicate requests, and expose data freshness and provider status in the UI. NASA FIRMS MAP_KEY values and all other provider credentials must remain server-side.
+
+GIBS/Worldview should be used for authorized visualization services and map layers, not by scraping screenshots. ML processing should use the underlying analysis-ready satellite products, such as Sentinel-3 SLSTR, where their spatial and temporal characteristics are suitable.
+
+## 6.3 Data Provenance, Licensing, and Attribution
+
+Every source and derived dataset must have a provenance record containing:
+
+```text
+source_name
+product_or_endpoint
+provider
+retrieval_timestamp
+coverage
+licence_or_terms_url
+attribution_text
+processing_version
+redistribution_status
+```
+
+NASA Earth science data and Copernicus Sentinel products are generally suitable for open or downstream use subject to product-specific notices, attribution, and applicable restrictions. The product must not imply NASA or ISRO endorsement. OpenStreetMap data must be attributed under the ODbL, and any OSM-derived database distribution must be reviewed for share-alike obligations. INSAT/MOSDAC access, redistribution, and commercial-use terms must be verified for each product before commercial deployment; the SIH implementation should describe INSAT as an NRT enhancement subject to confirmed access and licensing terms. Third-party ML model and dataset licences must be checked individually before production or commercial use.
 
 ---
 

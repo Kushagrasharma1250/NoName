@@ -530,6 +530,32 @@ The raw satellite data itself should not be treated as the primary competitive m
 - Regulatory or licensing constraints for some datasets.
 - Dependence on third-party satellite data availability.
 
+## 15.1 Technical and Commercial Feasibility
+
+The proposed SIH prototype is technically highly feasible when it uses an open-data-first, cached-ingestion architecture:
+
+```text
+FIRMS / VIIRS / Sentinel / INSAT*
+      ↓
+     Backend adapters and cache
+      ↓
+   PostGIS and feature store
+      ↓
+   ML classification and risk
+      ↓
+    Alerts and GIS dashboard
+```
+
+NASA FIRMS provides API, WMS, and WFS access for core thermal detections, while NASA GIBS/Worldview can support satellite visualization. Copernicus Sentinel products can support downstream/value-added processing subject to product notices and attribution. Sentinel-3 SLSTR, ESA WorldCover, and OSM can provide complementary thermal, land-cover, and infrastructure context.
+
+The principal implementation constraints are API limits, source latency, spatial-resolution mismatch, temporal mismatch, incomplete infrastructure data, and limited ground-truth labels. FIRMS and other external services must be accessed by scheduled backend jobs and served from a validated cache or database; browser clients must not generate one provider request per user.
+
+Licensing must be tracked through a dataset and model provenance matrix. NASA data must be attributed without implying NASA endorsement. OSM data requires ODbL attribution and share-alike review where derived databases are distributed. INSAT/MOSDAC access, redistribution, and commercial-use terms must be verified for each product before commercial deployment, so INSAT should be presented as an NRT enhancement subject to confirmed terms. Third-party pretrained model licences must also be checked individually.
+
+Recommended feasibility statement for presentations:
+
+> Open-data-first architecture: NASA Earthdata and Copernicus Sentinel provide openly accessible EO datasets suitable for downstream/value-added applications; OSM and model licences are tracked through dataset/model provenance; provider-specific restrictions are respected for operational/NRT integrations.
+
 ---
 
 # 16. Feature Gap Analysis

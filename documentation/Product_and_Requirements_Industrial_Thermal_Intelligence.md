@@ -1,8 +1,8 @@
 # 📋 Product & Requirements Document
 ## AI-Enabled Geospatial System for Industrial Fire & Persistent Thermal Source Monitoring
 
-**Version:** 1.0  
-**Date:** 21 August 2026  
+**Version:** 1.1  
+**Date:** 23 August 2026  
 **Project Type:** AI + GIS + Remote Sensing  
 **Primary Objective:** Automatically identify, classify, and monitor industrial fires and persistent thermal sources using satellite thermal anomalies, land-cover information, industrial infrastructure data, and satellite imagery.
 
@@ -17,12 +17,16 @@ Existing satellite fire-monitoring systems such as NASA FIRMS provide valuable t
 This project proposes an **AI-enabled geospatial intelligence platform** that combines:
 
 - Satellite thermal anomaly data
+- INSAT near-real-time data for India and NASA FIRMS/VIIRS near-real-time data for global coverage
 - Satellite optical imagery
 - Land-cover information
 - Industrial infrastructure databases
 - Historical thermal-event information
 - Spatial and temporal features
 - Machine-learning classification
+- User authentication and role-based access
+- Nearest fire-station lookup and consent-based SMS alerts
+- Grounded natural-language data insights
 
 The system will classify detected thermal events, estimate confidence and risk, store results in a spatial database, and visualize them through an interactive GIS dashboard.
 
@@ -132,6 +136,11 @@ to:
 - Provide facility-level monitoring.
 - Enable filtering by event type, date, location, and risk.
 - Support future automated alerts.
+- Support authenticated users, notification consent, and verified phone numbers.
+- Identify the nearest fire station for a qualifying hazard.
+- Send configurable SMS alerts for new nearby hazards through a backend-only provider.
+- Use cached backend ingestion rather than direct browser requests to external satellite APIs.
+- Track source, licence, attribution, retrieval time, and processing version for every dataset.
 - Provide explainable features behind AI classifications.
 - Create a scalable architecture for regional or national deployment.
 
@@ -617,12 +626,14 @@ The system should support export of selected results in formats such as:
 
 ## FR-15 — Alerting
 
-Future versions should support alerts when:
+The system should support configurable alerts when:
 
 - A high-risk event is detected.
 - A new industrial fire is identified.
 - An abnormal persistent source is detected.
 - A previously monitored facility shows unusual activity.
+
+Alerts should identify the nearest available fire station and may send an SMS to a verified, opted-in phone number. Messages should include event class, confidence, risk score, detection time, source, location or map link, and nearest-station distance. The system must support opt-out, quiet hours, duplicate suppression, rate limiting, provider retries, and delivery status. Alerts are decision support and do not confirm a ground fire without field verification.
 
 ---
 
@@ -1043,7 +1054,7 @@ This staged approach allows the team to deliver an MVP before attempting the mos
 The system must recognize the following constraints:
 
 1. Satellite imagery may have cloud cover.
-2. Satellite observations are not necessarily real-time.
+2. Satellite observations have provider-specific latency and are not necessarily real-time.
 3. Thermal anomalies may be spatially coarse.
 4. Multiple sources can produce similar thermal signatures.
 5. Industrial facilities can generate normal thermal activity.
@@ -1051,6 +1062,10 @@ The system must recognize the following constraints:
 7. Different satellites have different spatial and temporal characteristics.
 8. AI predictions are probabilistic and should not be treated as definitive ground truth.
 9. Some events may remain classified as Unknown when evidence is insufficient.
+10. External APIs impose rate limits and must be accessed through scheduled, cached backend ingestion.
+11. INSAT/MOSDAC product access and redistribution terms must be verified before commercial deployment.
+12. OpenStreetMap-derived data requires ODbL attribution and possible share-alike review.
+13. NASA, Copernicus, WorldCover, and third-party model terms must be checked per product or model before redistribution or commercial use.
 
 ---
 
