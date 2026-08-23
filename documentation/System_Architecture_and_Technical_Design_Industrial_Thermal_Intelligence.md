@@ -1,8 +1,8 @@
 # 🏗️ System Architecture & Technical Design
 ## AI-Enabled Geospatial System for Industrial Fire & Persistent Thermal Source Monitoring
 
-**Version:** 1.0  
-**Date:** 21 August 2026  
+**Version:** 1.1  
+**Date:** 23 August 2026  
 **Project:** AI + GIS + Remote Sensing  
 **Architecture Style:** Modular, API-driven, geospatial intelligence platform
 
@@ -14,7 +14,7 @@ This document defines the technical architecture and system design for an AI-ena
 
 The system integrates:
 
-- Satellite thermal anomaly data
+- Satellite thermal anomaly data from INSAT for India and NASA FIRMS/VIIRS for global coverage
 - Satellite optical imagery
 - Industrial infrastructure databases
 - Land-cover information
@@ -25,6 +25,9 @@ The system integrates:
 - Risk scoring
 - PostGIS
 - Interactive GIS visualization
+- User authentication and role-based access
+- Fire-station proximity and notification services
+- Natural-language data-insight assistance
 
 The architecture is designed to support an MVP and provide a clear path toward regional and national-scale deployment.
 
@@ -48,6 +51,12 @@ The technical architecture must enable the platform to:
 12. Visualize events through a GIS dashboard.
 13. Support future alerts and automated reporting.
 14. Scale from a pilot region to large geographic areas.
+15. Provide India-focused near-real-time observations through INSAT and global near-real-time observations through NASA FIRMS/VIIRS APIs.
+16. Authenticate users and protect personal contact information and API credentials.
+17. Identify the nearest fire station and notify configured responders about new hazards.
+18. Combine VIIRS detections with the structured regression/classification layer and support multiple fire types.
+19. Provide accessible FIRMS-style map controls, visual summaries, and explainable event details.
+20. Answer user questions about the available data through a grounded analytics chatbot.
 
 ---
 
@@ -228,6 +237,7 @@ The data source layer provides raw observations.
 
 #### Thermal
 
+- INSAT for Indian near-real-time coverage
 - NASA FIRMS
 - VIIRS
 - MODIS
@@ -278,6 +288,22 @@ Deduplication
       ↓
 Database / Object Storage
 ```
+
+## 6.1 Regional Near-Real-Time Source Routing
+
+The ingestion service must select the near-real-time source according to geographic coverage:
+
+```text
+Observation region
+      │
+      ├── India → INSAT near-real-time thermal products
+      │
+      └── Outside India → NASA FIRMS / VIIRS near-real-time API
+```
+
+NASA FIRMS API keys must be supplied through server-side environment variables or a secrets manager. They must never be exposed in frontend code, user-visible URLs, logs, or database records. Each ingestion run should record the provider, product, acquisition time, retrieval time, coverage, and API response status.
+
+If INSAT is temporarily unavailable, FIRMS/VIIRS may be used as an India fallback, with the source and reduced coverage clearly labelled. Provider failures must trigger retries and preserve the last successful ingestion timestamp so stale observations are not presented as real time.
 
 ---
 
@@ -533,7 +559,25 @@ spectral_statistics
 
 The recommended implementation is staged.
 
-## Stage 1 — Baseline Model
+## Stage 1 — VIIRS and Regression Detection Layer
+
+Detection is a two-layer process rather than a regression-only pipeline:
+
+```text
+INSAT / FIRMS / VIIRS observations
+            ↓
+      VIIRS thermal detection layer
+            ↓
+  Validation, deduplication, and spatial clustering
+            ↓
+ Structured feature and regression/classification layer
+            ↓
+      Fused class, confidence, and risk
+```
+
+The VIIRS layer supplies satellite-derived evidence such as fire radiative power, brightness temperature, confidence, scan geometry, and acquisition time. The regression/classification layer adds spatial, temporal, facility, land-cover, and historical features. Store both layer scores and the final fused decision so analysts can understand the classification.
+
+## Stage 2 — Baseline Model
 
 Use structured features with:
 
@@ -547,7 +591,7 @@ Structured geospatial and temporal features are highly important for this proble
 
 ---
 
-## Stage 2 — Image Model
+## Stage 3 — Image Model
 
 Use satellite image patches with:
 
@@ -557,7 +601,7 @@ Use satellite image patches with:
 
 ---
 
-## Stage 3 — Feature Fusion
+## Stage 4 — Feature Fusion
 
 Combine:
 
@@ -584,7 +628,10 @@ Initial categories:
 4. Agricultural Burning
 5. Wildfire / Forest Fire
 6. Mining-Related Thermal Event
-7. Other / Unknown
+7. Electrical / Infrastructure Fire
+8. Industrial Waste or Landfill Fire
+9. Volcanic or Geothermal Thermal Event
+10. Other / Unknown
 ```
 
 The taxonomy should remain configurable because real-world data may show that some categories are difficult to distinguish reliably.
@@ -855,6 +902,16 @@ The backend should expose REST APIs for:
 - Map layers
 - User authentication
 - Reports
+- User registration, login, logout, and token refresh
+- Notification preferences and verified phone numbers
+- Nearest fire-station lookup and alert delivery status
+- Natural-language analytics queries
+
+## 23.1 Authentication and Authorization
+
+All event, facility, analytics, alert, and chatbot endpoints must require an authenticated user except for health checks and explicitly public metadata. Passwords must be stored only as salted, slow hashes. Access tokens should be short-lived, refreshable, and transmitted over HTTPS. Roles should control access to administrative datasets, model configuration, alert rules, and user management.
+
+Personal data must be minimized: store a verified phone number in protected form, limit access through role-based authorization, and record notification consent and opt-out status. Authentication and alert actions should be included in audit logs without storing message contents or secrets unnecessarily.
 
 ---
 
@@ -899,6 +956,21 @@ GET /api/v1/analytics/risk-map
 GET /api/v1/map/events
 GET /api/v1/map/facilities
 GET /api/v1/map/land-cover
+```
+
+## Authentication and Alert APIs
+
+```text
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+GET  /api/v1/users/me
+PATCH /api/v1/users/me/notification-preferences
+GET  /api/v1/events/{event_id}/nearest-fire-station
+POST /api/v1/alerts/test
+GET  /api/v1/alerts
+POST /api/v1/chat/query
 ```
 
 ---
@@ -966,6 +1038,10 @@ GET /api/v1/map/land-cover
 └─────────────────────────────────────────────────────────┘
 ```
 
+The dashboard should provide the major controls available in a FIRMS-style monitoring experience: global search, date and time window, source/provider, satellite/product, confidence, FRP, fire type, risk level, persistence, country/region, and distance to industrial facilities or fire stations. GeoPandas should prepare map-ready spatial layers, while Seaborn should support readable statistical charts for trends, class distribution, confidence, FRP, persistence, and risk. Controls must support keyboard navigation, visible focus states, readable labels, sufficient contrast, screen-reader-friendly status text, and non-color indicators for severity and fire type.
+
+The interface should explain each event with plain-language labels, units, timestamps with timezone, data-source attribution, confidence, uncertainty, and a clear distinction between satellite detection and model interpretation. Tables, charts, and map popups should have accessible text alternatives.
+
 ---
 
 # 28. GIS Map Layers
@@ -986,6 +1062,9 @@ The dashboard should support:
 - Wildfires
 - Agricultural burning
 - Persistent sources
+- INSAT India near-real-time observations
+- FIRMS/VIIRS global near-real-time observations
+- Nearest fire stations and alert coverage
 
 ### Context Layers
 
@@ -1041,6 +1120,12 @@ Display timeline
        ↓
 User reviews evidence
 ```
+
+## 30.1 Analytics Chatbot
+
+The platform may include a chatbot for questions such as “show high-risk fires near refineries in India in the last 24 hours” or “how many recurring events were detected this week?”. The chatbot must use a controlled analytics service that translates questions into validated, read-only queries over event, observation, facility, and risk data. It should return the filters, time range, source coverage, result count, and links to matching map or event views.
+
+Retrieval and structured query tools should be used first. A language model may summarize returned results, but it must not invent observations, claim that a satellite detection is confirmed ground truth, or execute write operations. Training or fine-tuning on near-real-time data must use versioned snapshots, remove personal data, and remain separate from the live operational database. Unsupported or low-confidence questions should receive a clear limitation message.
 
 ---
 
@@ -1798,6 +1883,28 @@ Is Risk >= Threshold?
       User / Agency
 ```
 
+## 53.1 Nearest Fire-Station and SMS Alert Flow
+
+For every new event that crosses the configured risk and confidence thresholds:
+
+```text
+New fused event
+      ↓
+Risk and confidence policy
+      ↓
+Find nearest fire station using geospatial distance
+      ↓
+Resolve subscribed users/responders for the affected area
+      ↓
+Send SMS through a pluggable provider
+      ↓
+Store delivery status and retry failures
+```
+
+The alert message should include the event type, risk level and score, detection time, coordinates or map link, distance to the nearest fire station, satellite source, and confidence. The system must support user consent, quiet hours, duplicate suppression, rate limits, provider retries with backoff, delivery receipts, and opt-out. SMS delivery should use a backend-only provider such as Twilio or an equivalent regional service; credentials must be kept in a secrets manager. Alerts are decision support and must not be presented as confirmation of an active ground fire without field verification.
+
+The fire-station dataset should contain station name, dispatch identifier, geometry, operating status, coverage area where available, source, and update timestamp. Nearest-station results should expose distance and data freshness.
+
 Alerts should include:
 
 - Event location
@@ -2121,6 +2228,7 @@ The proposed system is a **multi-layer geospatial intelligence architecture**:
 | Layer | Technology |
 |---|---|
 | Satellite thermal data | FIRMS / VIIRS / MODIS |
+| Indian near-real-time thermal data | INSAT products |
 | Optical imagery | Sentinel-2 / Landsat |
 | Vector processing | GeoPandas / Shapely |
 | Raster processing | Rasterio / GDAL |
@@ -2129,6 +2237,7 @@ The proposed system is a **multi-layer geospatial intelligence architecture**:
 | Deep learning | PyTorch |
 | Spatial database | PostgreSQL + PostGIS |
 | Backend | FastAPI |
+| Authentication | OAuth2/OIDC-compatible tokens and Argon2id password hashing |
 | Frontend | React + TypeScript |
 | Maps | MapLibre GL JS |
 | Large-scale visualization | Deck.gl |
@@ -2137,6 +2246,8 @@ The proposed system is a **multi-layer geospatial intelligence architecture**:
 | Containerization | Docker |
 | Production orchestration | Kubernetes or managed container platform |
 | Monitoring | Logs + metrics + model monitoring |
+| Notifications | SMS provider adapter with delivery tracking |
+| Analytics chatbot | Retrieval plus validated read-only query service |
 
 ---
 
@@ -2145,6 +2256,8 @@ The proposed system is a **multi-layer geospatial intelligence architecture**:
 The technical architecture is considered ready for MVP implementation when:
 
 - [ ] At least one thermal data source can be ingested.
+- [ ] INSAT is used for Indian near-real-time data and FIRMS/VIIRS for other global near-real-time coverage.
+- [ ] NASA API keys are configured server-side and are never exposed to users.
 - [ ] Thermal observations are stored with spatial geometry.
 - [ ] Industrial facilities can be queried spatially.
 - [ ] Land-cover information can be associated with events.
@@ -2154,8 +2267,15 @@ The technical architecture is considered ready for MVP implementation when:
 - [ ] Persistence can be calculated.
 - [ ] Risk scores can be generated.
 - [ ] FastAPI exposes event and map APIs.
+- [ ] User authentication, authorization, and notification consent are implemented.
+- [ ] The nearest fire station can be returned for a detected event.
+- [ ] Configured users can receive and manage SMS hazard alerts.
+- [ ] VIIRS detection evidence is fused with the structured regression/classification layer.
+- [ ] Additional fire categories are represented with confidence and unknown handling.
 - [ ] React GIS dashboard displays events.
 - [ ] Users can filter and inspect events.
+- [ ] FIRMS-style filters, source attribution, accessible visualizations, and text alternatives are available.
+- [ ] A grounded chatbot can answer read-only questions about current and historical data.
 - [ ] Model and dataset versions are tracked.
 - [ ] Docker-based local deployment works.
 - [ ] The complete pipeline can be demonstrated end-to-end.
