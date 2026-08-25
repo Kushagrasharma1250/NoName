@@ -1138,7 +1138,7 @@ The platform should:
 
 # 25. Future Vision
 
-The long-term platform can evolve into a national-scale **Industrial Thermal Intelligence Network**.
+The long-term platform can evolve into a national-scale **TRACE Thermal Intelligence Network**.
 
 ```text
 Multiple Satellites

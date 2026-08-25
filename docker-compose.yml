@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgis/postgis:16-3.4
-    container_name: athletiq
+    container_name: trace-thermal-risk-engine
 
     restart: unless-stopped
 

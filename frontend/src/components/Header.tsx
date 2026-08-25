@@ -1,13 +1,15 @@
 import React from 'react';
 import { Flame, ShieldAlert, Activity, RefreshCw } from 'lucide-react';
+import type { RealtimeStatus } from '../services/api';
 
 interface HeaderProps {
   isHealthy: boolean;
   onRefresh: () => void;
   isLoading: boolean;
+  realtimeStatus: RealtimeStatus | null;
 }
 
-export const Header: React.FC<HeaderProps> = ({ isHealthy, onRefresh, isLoading }) => {
+export const Header: React.FC<HeaderProps> = ({ isHealthy, onRefresh, isLoading, realtimeStatus }) => {
   return (
     <header className="h-16 bg-[#0f172a] border-b border-slate-800 px-6 flex items-center justify-between shadow-lg relative z-30">
       {/* Brand & Title */}
@@ -18,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ isHealthy, onRefresh, isLoading 
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="font-extrabold text-lg text-slate-100 tracking-tight">
-              INDUSTRIAL THERMAL INTELLIGENCE
+              TRACE:Thermal risk & anomaly classification engine
             </h1>
             <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
               v1.0 AI ACTIVE
@@ -42,6 +44,14 @@ export const Header: React.FC<HeaderProps> = ({ isHealthy, onRefresh, isLoading 
           <span className="relative flex h-2 w-2">
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isHealthy ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
             <span className={`relative inline-flex rounded-full h-2 w-2 ${isHealthy ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+          </span>
+        </div>
+
+        <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono">
+          <span className={`h-2 w-2 rounded-full ${realtimeStatus?.last_success && !realtimeStatus.stale ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+          <span className="text-slate-400">NRT:</span>
+          <span className="font-semibold text-slate-200">
+            {!realtimeStatus?.configured ? 'KEY REQUIRED' : realtimeStatus.stale ? 'STALE' : 'LIVE'}
           </span>
         </div>
 

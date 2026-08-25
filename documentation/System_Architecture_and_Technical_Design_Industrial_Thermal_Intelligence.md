@@ -144,8 +144,7 @@ The technical architecture must enable the platform to:
                         ▼
                ┌──────────────────┐
                │  GIS WEB CLIENT  │
-               │ React + MapLibre │
-               │ + Deck.gl        │
+               │ React + Leaflet  │
                └────────┬─────────┘
                         │
                         ▼
@@ -1659,8 +1658,8 @@ For large-scale deployment, containers can later be orchestrated using a platfor
 ```text
 React
 TypeScript
-MapLibre GL JS
-Deck.gl
+Leaflet
+React Leaflet
 ```
 
 ## Backend
@@ -1728,8 +1727,8 @@ GPU infrastructure when required
 | PostgreSQL | Mature relational database |
 | PostGIS | Native spatial querying |
 | React | Modular frontend |
-| MapLibre | Flexible interactive maps |
-| Deck.gl | Large-scale geospatial visualization |
+| Leaflet | Lightweight interactive maps for the MVP |
+| React Leaflet | React integration for map layers and markers |
 | GeoPandas | Vector geospatial processing |
 | Rasterio | Raster processing |
 | XGBoost | Strong tabular ML baseline |
@@ -1743,7 +1742,7 @@ GPU infrastructure when required
 A recommended project structure:
 
 ```text
-industrial-thermal-intelligence/
+trace-thermal-risk-engine/
 │
 ├── frontend/
 │   ├── src/
@@ -2277,8 +2276,8 @@ The proposed system is a **multi-layer geospatial intelligence architecture**:
 | Backend | FastAPI |
 | Authentication | OAuth2/OIDC-compatible tokens and Argon2id password hashing |
 | Frontend | React + TypeScript |
-| Maps | MapLibre GL JS |
-| Large-scale visualization | Deck.gl |
+| Maps | Leaflet + React Leaflet |
+| Visualization | Recharts |
 | Background jobs | Python workers / scheduler |
 | Object storage | S3-compatible storage |
 | Containerization | Docker |

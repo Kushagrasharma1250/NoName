@@ -1,6 +1,6 @@
 import React from 'react';
 import { SystemStatistics } from '../types';
-import { Factory, Trees, Flame, Zap, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Factory, Trees, Flame, Zap, AlertTriangle } from 'lucide-react';
 
 interface MetricCardsProps {
   stats: SystemStatistics | null;

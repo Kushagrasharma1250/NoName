@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { EventSummary, PersistentEvent } from '../types';
-import { Search, Filter, Flame, Zap, CheckCircle2, SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 
 interface EventListProps {
   events: EventSummary[];
@@ -103,7 +103,7 @@ export const EventList: React.FC<EventListProps> = ({
         ) : (
           filteredEvents.map((evt) => {
             const isSelected = evt.event_id === selectedEventId;
-            const isPersistent = persistentSet.has(evt.event_id);
+            const isPersistent = evt.persistence === 'PERSISTENT' || persistentSet.has(evt.event_id);
 
             return (
               <div
@@ -131,6 +131,11 @@ export const EventList: React.FC<EventListProps> = ({
                     </span>
                   </div>
 
+                  {evt.classification && (
+                    <span className="px-1.5 py-0.5 text-[9px] font-mono bg-slate-800 text-slate-300 rounded border border-slate-700">
+                      {evt.classification.replace(/_/g, ' ')}
+                    </span>
+                  )}
                   {isPersistent && (
                     <span className="px-1.5 py-0.5 text-[9px] font-mono bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
                       PERSISTENT

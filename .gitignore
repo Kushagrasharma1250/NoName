@@ -45,6 +45,8 @@ pnpm-debug.log*
 *.sqlite3
 *.log
 *.pid
+backend/data/firms/realtime_*.csv
+backend/data/firms/realtime_*.json
 
 # Operating system files
 .DS_Store

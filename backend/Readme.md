@@ -1,6 +1,16 @@
-# Backend
+# TRACE Backend
 
-The backend is a FastAPI service for the Industrial Fire Intelligence dashboard. It serves event summaries, persistent thermal sources, aggregate statistics, and detailed event telemetry from generated CSV data. Supporting modules ingest NASA FIRMS data, build event clusters, engineer features, run classification, and persist results in PostgreSQL/PostGIS.
+The backend is a FastAPI service for the TRACE:Thermal risk & anomaly classification engine dashboard. It serves event summaries, persistent thermal sources, aggregate statistics, and detailed event telemetry from generated CSV data. Supporting modules ingest NASA FIRMS data, build event clusters, engineer features, run classification, and persist results in PostgreSQL/PostGIS.
+
+## Technology Stack
+
+- Python 3.10+
+- FastAPI and Uvicorn
+- Pandas and NumPy for data processing
+- Scikit-learn and XGBoost for machine learning
+- SQLAlchemy and Psycopg for PostgreSQL/PostGIS access
+- Requests and python-dotenv for ingestion and configuration
+- Docker Compose with PostgreSQL/PostGIS for local infrastructure
 
 ## Requirements
 
@@ -17,9 +27,16 @@ Create `backend/.env` for database-backed ingestion and event processing:
 ```env
 DATABASE_URL=postgresql+psycopg2://fire_admin:131006@localhost:5432/fire_intelligence
 NASA_FIRMS_MAP_KEY=your_nasa_firms_map_key
+NASA_FIRMS_BBOX=68,6,97,37
+NASA_FIRMS_SOURCE=VIIRS_NOAA21_NRT
+NASA_FIRMS_SOURCES=VIIRS_NOAA21_NRT,VIIRS_NOAA20_NRT,VIIRS_SNPP_NRT,MODIS_NRT
+NASA_FIRMS_DAYS=5
+REALTIME_REFRESH_SECONDS=900
 ```
 
 `main.py` reads the generated CSV files under `backend/data` and does not require a database connection to serve the dashboard endpoints. `event_engine.py`, `firm_ingestion.py`, and the database modules do require `DATABASE_URL`. Keep API keys and database credentials out of source control.
+
+The real-time service refreshes the configured FIRMS/VIIRS area on startup and every `REALTIME_REFRESH_SECONDS`. Use `POST /realtime/refresh` for an immediate refresh and `GET /realtime/status` to inspect configuration, last successful retrieval, record count, and staleness.
 
 ## Start PostgreSQL
 

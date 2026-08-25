@@ -612,7 +612,7 @@ def main():
 
     print("\n")
     print("========================================")
-    print("INDUSTRIAL FIRE INTELLIGENCE SYSTEM")
+    print("TRACE:THERMAL RISK & ANOMALY CLASSIFICATION ENGINE")
     print("NASA FIRMS INGESTION")
     print("========================================")
 

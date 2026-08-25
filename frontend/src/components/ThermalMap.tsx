@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { EventSummary, PersistentEvent } from '../types';
-import { Flame, Factory, AlertCircle, Crosshair } from 'lucide-react';
+import { Crosshair } from 'lucide-react';
 
 interface ThermalMapProps {
   events: EventSummary[];
@@ -94,14 +94,14 @@ export const ThermalMap: React.FC<ThermalMapProps> = ({
 
         {/* Render Event Markers */}
         {events.map((event) => {
-          const isPersistent = persistentMap.has(event.event_id);
+          const isPersistent = event.persistence === 'PERSISTENT' || persistentMap.has(event.event_id);
           const isSelected = event.event_id === selectedEventId;
 
           // Color selection logic
           let markerColor = '#f59e0b'; // Amber default
           if (isPersistent) {
             markerColor = '#a855f7'; // Purple persistent
-          } else if (event.detection_count > 10) {
+          } else if (event.high_risk || event.detection_count > 10) {
             markerColor = '#ef4444'; // Red industrial/heavy fire
           }
 

@@ -3,6 +3,10 @@ export interface EventSummary {
   latitude: number;
   longitude: number;
   detection_count: number;
+  classification?: 'INDUSTRIAL_FIRE' | 'WILDFIRE' | 'OTHER_THERMAL_ANOMALY';
+  persistence?: 'PERSISTENT' | 'TRANSIENT';
+  persistence_score?: number;
+  high_risk?: boolean;
 }
 
 export interface PersistentEvent {

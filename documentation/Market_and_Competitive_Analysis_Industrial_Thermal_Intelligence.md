@@ -3,7 +3,7 @@
 
 **Version:** 1.0  
 **Date:** 21 August 2026  
-**Project:** AI + GIS + Remote Sensing for Industrial Thermal Intelligence
+**Project:** TRACE:Thermal risk & anomaly classification engine
 
 ---
 
@@ -318,7 +318,7 @@ Can begin with one region and scale toward national monitoring.
 
 The product should be positioned as:
 
-> **Industrial Thermal Intelligence Platform**
+> **TRACE:Thermal risk & anomaly classification engine**
 
 rather than:
 
@@ -328,7 +328,7 @@ This positioning is important because generic fire detection is already a highly
 
 ### Positioning Statement
 
-> For government agencies, environmental authorities, industrial operators, and emergency-response teams that need to understand thermal anomalies across large geographic regions, the proposed platform provides AI-powered industrial thermal intelligence by combining satellite observations with infrastructure, land-cover, imagery, and temporal context.
+> For government agencies, environmental authorities, industrial operators, and emergency-response teams that need to understand thermal anomalies across large geographic regions, TRACE provides AI-powered thermal risk and anomaly classification by combining satellite observations with infrastructure, land-cover, imagery, and temporal context.
 
 ---
 
@@ -787,7 +787,7 @@ Add:
 
 Goal:
 
-**National-scale industrial thermal intelligence.**
+**National-scale TRACE thermal intelligence.**
 
 ---
 

@@ -1,13 +1,35 @@
+import asyncio
 import csv
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from realtime import get_realtime_events, get_realtime_status, refresh_realtime_data
+
+
+async def realtime_refresh_loop():
+    while True:
+        try:
+            await asyncio.to_thread(refresh_realtime_data)
+        except Exception as error:
+            print(f"Real-time FIRMS refresh failed: {error}")
+        await asyncio.sleep(int(os.getenv("REALTIME_REFRESH_SECONDS", "900")))
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    refresh_task = asyncio.create_task(realtime_refresh_loop())
+    yield
+    refresh_task.cancel()
+    await asyncio.gather(refresh_task, return_exceptions=True)
 
 app = FastAPI(
-    title="Industrial Fire Intelligence API",
-    description="AI-powered satellite thermal anomaly detection and classification API",
-    version="1.0.0"
+    title="TRACE:Thermal risk & anomaly classification engine API",
+    description="TRACE API for satellite thermal risk assessment and anomaly classification",
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -35,7 +57,7 @@ def parse_float(value):
 @app.get("/")
 def root():
     return {
-        "message": "Industrial Fire Intelligence API is running",
+        "message": "TRACE:Thermal risk & anomaly classification engine API is running",
         "status": "online"
     }
 
@@ -47,8 +69,29 @@ def health():
     }
 
 
+@app.get("/realtime/status")
+def realtime_status():
+    return get_realtime_status()
+
+
+@app.post("/realtime/refresh")
+def realtime_refresh():
+    try:
+        return refresh_realtime_data()
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+
 @app.get("/events")
 def get_events():
+
+    realtime_events = get_realtime_events()
+    if realtime_events:
+        return {
+            "events": realtime_events,
+            "count": len(realtime_events),
+            "source": "NASA_FIRMS_MULTI_SOURCE_NRT",
+        }
 
     if not EVENTS_CSV_PATH.exists():
         return {"events": []}
@@ -76,6 +119,18 @@ def get_events():
 
 @app.get("/events/persistent")
 def get_persistent_events():
+
+    realtime_events = [
+        {
+            "event_id": event["event_id"],
+            "persistence": event["persistence"],
+            "persistence_score": event["persistence_score"],
+        }
+        for event in get_realtime_events()
+        if event.get("persistence") == "PERSISTENT"
+    ]
+    if realtime_events:
+        return {"count": len(realtime_events), "events": realtime_events}
 
     if not EVENT_FEATURES_CSV_PATH.exists():
         return {

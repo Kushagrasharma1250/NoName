@@ -10,8 +10,11 @@ import {
   fetchEvents,
   fetchPersistentEvents,
   fetchEventDetail,
+  fetchRealtimeStatus,
+  refreshRealtimeData,
 } from './services/api';
 import { SystemStatistics, EventSummary, PersistentEvent, EventDetail } from './types';
+import type { RealtimeStatus } from './services/api';
 
 export const App: React.FC = () => {
   const [isHealthy, setIsHealthy] = useState<boolean>(false);
@@ -20,6 +23,7 @@ export const App: React.FC = () => {
   const [persistentEvents, setPersistentEvents] = useState<PersistentEvent[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [eventDetail, setEventDetail] = useState<EventDetail | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [detailLoading, setDetailLoading] = useState<boolean>(false);
@@ -27,17 +31,19 @@ export const App: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [healthRes, statsRes, eventsRes, persistentRes] = await Promise.all([
+      const [healthRes, statsRes, eventsRes, persistentRes, realtimeRes] = await Promise.all([
         fetchHealth(),
         fetchStatistics(),
         fetchEvents(),
         fetchPersistentEvents(),
+        fetchRealtimeStatus(),
       ]);
 
       setIsHealthy(healthRes);
       setStats(statsRes);
       setEvents(eventsRes);
       setPersistentEvents(persistentRes);
+      setRealtimeStatus(realtimeRes);
 
       // Auto-select first event if none selected
       if (eventsRes.length > 0 && !selectedEventId) {
@@ -50,8 +56,23 @@ export const App: React.FC = () => {
     }
   };
 
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      await refreshRealtimeData();
+    } catch (err) {
+      console.warn('Real-time refresh unavailable', err);
+    }
+    await loadData();
+  };
+
   useEffect(() => {
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const refreshInterval = window.setInterval(loadData, 60_000);
+    return () => window.clearInterval(refreshInterval);
   }, []);
 
   // Fetch specific event telemetry when selection changes
@@ -76,7 +97,12 @@ export const App: React.FC = () => {
   return (
     <div className="h-screen w-screen flex flex-col bg-[#090d16] text-slate-100 overflow-hidden">
       {/* Top App Header */}
-      <Header isHealthy={isHealthy} onRefresh={loadData} isLoading={loading} />
+      <Header
+        isHealthy={isHealthy}
+        onRefresh={refreshData}
+        isLoading={loading}
+        realtimeStatus={realtimeStatus}
+      />
 
       {/* KPI Metrics Summary Bar */}
       <MetricCards stats={stats} loading={loading} />

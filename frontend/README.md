@@ -1,6 +1,16 @@
-# Industrial Thermal Intelligence - Web Dashboard
+# TRACE:Thermal risk & anomaly classification engine
 
 A modern, dark-mode geospatial dashboard built with **React**, **TypeScript**, **Tailwind CSS**, and **Leaflet** for real-time satellite thermal anomaly monitoring, classification, and industrial fire risk intelligence.
+
+## Technology Stack
+
+- React and React DOM
+- TypeScript with Vite
+- Tailwind CSS and PostCSS
+- Leaflet with React Leaflet for interactive maps
+- Axios for API requests
+- Recharts for analytical visualizations
+- Lucide React for interface icons
 
 ---
 

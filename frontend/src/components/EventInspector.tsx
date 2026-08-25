@@ -4,9 +4,7 @@ import {
   X,
   Flame,
   Factory,
-  Compass,
   Clock,
-  ShieldCheck,
   TrendingUp,
   PieChart as PieChartIcon,
 } from 'lucide-react';
