@@ -3,7 +3,7 @@
 
 **Version:** 1.1  
 **Date:** 23 August 2026  
-**Project Type:** NASA FIRMS + INSAT 3DR + OSM (Worldview + SENTINEL 2) + GIS + Remote Sensing  
+**Project Type:** NASA FIRMS + INSAT 3DR + OSM (Worldcover + SENTINEL 2) + GIS + Remote Sensing  
 **Primary Objective:** Automatically identify, classify, and monitor industrial fires and persistent thermal sources using satellite thermal anomalies, land-cover information, industrial infrastructure data, and satellite imagery.
 
 ---
