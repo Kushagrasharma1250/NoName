@@ -21,6 +21,7 @@ The proposed product combines:
 
 - Satellite thermal anomalies
 - Industrial facility databases
+- Indian NRT based satellite information 
 - Land-cover information
 - Satellite imagery
 - Historical thermal observations
