@@ -17,9 +17,11 @@ Existing satellite fire-monitoring systems such as NASA FIRMS provide valuable t
 This project proposes an **AI-enabled geospatial intelligence platform** that combines:
 
 - Satellite thermal anomaly data
-- INSAT near-real-time data for India and NASA FIRMS/VIIRS near-real-time data for global coverage
+- INSAT (3DR) near-real-time data for India and NASA FIRMS/VIIRS near-real-time data for global coverage + historical archives
 - Satellite optical imagery
 - Land-cover information
+- ESA Worldcover for low-resolution OSM information
+- ESA SENTINEL-2 data for high-resoluton OSM information
 - Industrial infrastructure databases
 - Historical thermal-event information
 - Spatial and temporal features
