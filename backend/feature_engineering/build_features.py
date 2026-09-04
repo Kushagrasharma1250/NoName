@@ -12,7 +12,6 @@ from landcover import calculate_landcover_features
 from persistence.detector import calculate_persistence, calculate_persistence_score
 from spatial import calculate_spatial_features
 from temporal import calculate_recurrence_frequency, calculate_temporal_features
-from temporal import calculate_recurrence_frequency, calculate_temporal_features
 from thermal import calculate_thermal_features
 
 

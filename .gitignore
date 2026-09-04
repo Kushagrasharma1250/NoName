@@ -47,6 +47,8 @@ pnpm-debug.log*
 *.pid
 backend/data/firms/realtime_*.csv
 backend/data/firms/realtime_*.json
+backend/data/pipeline_status.json
+backend/data/predictions/
 
 # Operating system files
 .DS_Store

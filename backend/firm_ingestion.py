@@ -472,19 +472,6 @@ def save_to_database(
     )
 
     with engine.begin() as connection:
-
-        connection.execute(text("""
-            CREATE UNIQUE INDEX IF NOT EXISTS
-            uq_thermal_anomalies_firms_detection
-            ON thermal_anomalies (
-                latitude,
-                longitude,
-                acquisition_date,
-                acquisition_time,
-                satellite
-            )
-        """))
-
         result = connection.execute(text("""
             INSERT INTO thermal_anomalies (
                 latitude,

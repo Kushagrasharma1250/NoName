@@ -112,12 +112,12 @@ These paths are currently separate. Realtime refresh does not run event clusteri
 - Realtime events receive deterministic placeholder classification, persistence, and risk values based on list position in `backend/realtime.py`; they are not produced by ML or geospatial analysis.
 - ML inference is not connected to FastAPI, the event engine, or realtime refresh, and there is no prediction endpoint or prediction persistence.
 - Realtime IDs generally do not match feature-file IDs, so selecting many realtime events cannot resolve real detail data and causes frontend fallback behavior.
-- `backend/database/schema.sql` and `backend/database/thermal_schema.sql` define incompatible `thermal_anomalies` structures. Ingestion and event processing expect the normalized schema in `schema.sql`.
+- `backend/database/schema.sql` is the canonical `thermal_anomalies` definition. The former incompatible definition in `backend/database/thermal_schema.sql` is retained only as a deprecation pointer; Docker initializes `schema.sql`, `events_schema.sql`, and the idempotent facility seed in order.
 - There are no application unit tests, API tests, ML evaluation tests, frontend tests, or end-to-end integration tests.
 
 ### Medium priority
 
-- Land-cover extraction is not implemented.
+- Land-cover extraction is implemented with configurable GeoTIFF sampling; deployment still needs a raster path and an industrial-class mapping if industrial land must be distinguished from generic built-up land.
 - INSAT ingestion, satellite imagery processing, fire-station lookup, alerting, SMS/notification preferences, audit logging, chatbot analytics, and authentication are documented but absent.
 - Historical event, facility, GeoJSON/map-layer, and versioned `/api/v1` endpoints are absent.
 - Aggregate statistics combine processed training data and feature-table data rather than consistently representing the realtime feed.
@@ -138,14 +138,9 @@ These paths are currently separate. Realtime refresh does not run event clusteri
 
 ## Recommended Next Work
 
-1. Choose and document one canonical `thermal_anomalies` schema, then align ingestion, event processing, seed scripts, and initialization order.
-2. Define stable event IDs and a shared event/detail contract for realtime and batch outputs.
-3. Connect realtime refresh to event clustering, feature generation, and ML inference, or explicitly expose those as separate jobs with persisted outputs.
-4. Add API tests for health, event listing, event detail, statistics, realtime refresh, and error handling.
-5. Add a classifier endpoint and store model version, prediction, confidence, and timestamp with each event.
-6. Implement real land-cover features and replace frontend synthetic/fallback values with API-backed data.
-7. Add integration coverage for FIRMS ingestion through dashboard rendering.
-8. Only after the core path is coherent, implement the larger documented roadmap: INSAT, imagery, alerts, authentication, fire stations, analytics chatbot, and production deployment services.
+1. Provide a production land-cover GeoTIFF and validate the configured class mapping for the target geography.
+2. Add integration coverage for FIRMS ingestion through dashboard rendering.
+3. Only after the core path is coherent, implement the larger documented roadmap: INSAT, imagery, alerts, authentication, fire stations, analytics chatbot, and production deployment services.
 
 ## Repository Areas Reviewed
 

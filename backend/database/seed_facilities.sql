@@ -6,7 +6,8 @@ INSERT INTO industrial_facilities
     longitude,
     location
 )
-VALUES
+SELECT *
+FROM (VALUES
 
 (
     'Plant A',
@@ -62,4 +63,9 @@ VALUES
         ),
         4326
     )::geography
+)) AS seed(name, facility_type, latitude, longitude, location)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM industrial_facilities existing
+    WHERE existing.name = seed.name
 );

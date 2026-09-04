@@ -38,6 +38,16 @@ REALTIME_REFRESH_SECONDS=900
 
 The real-time service refreshes the configured FIRMS/VIIRS area on startup and every `REALTIME_REFRESH_SECONDS`. Use `POST /realtime/refresh` for an immediate refresh and `GET /realtime/status` to inspect configuration, last successful retrieval, record count, and staleness.
 
+Realtime acquisition is separate from processing jobs. The refresh persists raw FIRMS data; processing stages are explicitly triggered and their status is persisted in `backend/data/pipeline_status.json`:
+
+- `POST /pipeline/jobs/ingestion` normalizes the persisted realtime CSV and writes detections to PostgreSQL/PostGIS.
+- `POST /pipeline/jobs/clustering` runs database-backed event clustering and exports `backend/data/events/events.csv`.
+- `POST /pipeline/jobs/features` builds event features and exports `backend/data/features/event_features.csv`.
+- `POST /pipeline/jobs/inference` runs the classifier over the feature output and exports `backend/data/predictions/event_predictions.csv`.
+- `GET /pipeline/jobs` returns the status, timestamps, output path, row count, and errors for each stage.
+
+Run the stages in this order after `POST /realtime/refresh`: `ingestion`, `clustering`, `features`, then `inference`. Each stage is independently rerunnable; a later stage consumes the previous stage's persisted output.
+
 ## Start PostgreSQL
 
 The included Compose configuration starts PostGIS on port `5432`:
@@ -52,7 +62,13 @@ The database settings are defined in `docker-compose.yml`:
 - User: `fire_admin`
 - Port: `5432`
 
-Initialize the database with the SQL scripts in `backend/database` as required by the current pipeline.
+On a new PostgreSQL volume, Docker initializes the database in this order:
+
+1. `backend/database/schema.sql` creates the PostGIS extension, facilities, and the canonical normalized `thermal_anomalies` table.
+2. `backend/database/events_schema.sql` creates the event table that references thermal detections by `event_id`.
+3. `backend/database/seed_facilities.sql` inserts the sample facilities idempotently.
+
+`backend/database/thermal_schema.sql` is deprecated and must not be run. The canonical thermal anomaly columns are `latitude`, `longitude`, `acquisition_date`, `acquisition_time`, `brightness_temperature`, `background_temperature`, `frp`, `confidence`, `satellite`, `instrument`, `daynight`, `source`, `source_dataset`, `anomaly_type`, `event_id`, and `location`.
 
 ## Run the API
 
@@ -82,7 +98,7 @@ Returns:
 
 ### `GET /events`
 
-Returns event map summaries from `backend/data/events/events.csv`:
+Returns one stable event-summary envelope for either the realtime FIRMS feed or the batch event export. Every event uses `event_id` as its public identifier; realtime IDs use the `EVT-NRT-...` namespace and batch IDs use `EVT-BATCH-...`.
 
 ```json
 {
@@ -96,6 +112,20 @@ Returns event map summaries from `backend/data/events/events.csv`:
   ]
 }
 ```
+
+`GET /events/{event_id}` uses the same detail contract for both sources: `event_id`, `thermal`, `spatial`, `land_cover`, `temporal`, `classification`, `persistence`, and `persistence_score`. Fields unavailable for realtime detections are returned as `null` or zero rather than changing the response shape.
+
+### Land-cover configuration
+
+Feature generation reads a categorical GeoTIFF configured with `LANDCOVER_RASTER_PATH`. The default class mapping follows ESA WorldCover: forest classes `10,20,30`, agriculture `40`, and built-up `50`. Set `LANDCOVER_RADIUS_M` to change the sampling radius, and use `LANDCOVER_CLASS_MAPPING` JSON to match another product, for example:
+
+```env
+LANDCOVER_RASTER_PATH=C:\data\worldcover.tif
+LANDCOVER_RADIUS_M=500
+LANDCOVER_CLASS_MAPPING={"forest":[10,20,30],"agriculture":[40],"builtup":[50],"industrial":[51]}
+```
+
+`industrial_ratio` is `null` by default because ESA WorldCover does not distinguish industrial land from other built-up land. Provide a dataset-specific industrial class through the mapping when available. Without `LANDCOVER_RASTER_PATH`, all land-cover fields remain `null`; no synthetic values are generated.
 
 If the CSV is missing, the endpoint returns an empty event list.
 

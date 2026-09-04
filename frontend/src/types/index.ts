@@ -3,6 +3,9 @@ export interface EventSummary {
   latitude: number;
   longitude: number;
   detection_count: number;
+  frp_mean?: number;
+  frp_max?: number;
+  confidence?: string | number | null;
   classification?: 'INDUSTRIAL_FIRE' | 'WILDFIRE' | 'OTHER_THERMAL_ANOMALY';
   persistence?: 'PERSISTENT' | 'TRANSIENT';
   persistence_score?: number;
@@ -18,7 +21,7 @@ export interface PersistentEvent {
 export interface ThermalData {
   frp_mean: number;
   frp_max: number;
-  confidence: number | null;
+  confidence: number | string | null;
 }
 
 export interface SpatialData {
@@ -36,6 +39,7 @@ export interface LandCoverData {
 export interface TemporalData {
   detection_count: number;
   event_duration_hours: number;
+  recurrence_frequency: number;
 }
 
 export interface EventDetail {
@@ -44,8 +48,9 @@ export interface EventDetail {
   spatial: SpatialData;
   land_cover: LandCoverData;
   temporal: TemporalData;
-  classification?: 'INDUSTRIAL_FIRE' | 'WILDFIRE' | 'AGRICULTURAL_BURNING' | 'PERSISTENT_FLARE';
-  persistence_score?: number;
+  classification?: 'INDUSTRIAL_FIRE' | 'WILDFIRE' | 'AGRICULTURAL_BURNING' | 'PERSISTENT_FLARE' | 'OTHER_THERMAL_ANOMALY' | null;
+  persistence?: 'PERSISTENT' | 'TRANSIENT' | null;
+  persistence_score?: number | null;
 }
 
 export interface SystemStatistics {

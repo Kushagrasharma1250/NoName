@@ -9,6 +9,8 @@ from sqlalchemy import create_engine, text
 
 from sklearn.cluster import DBSCAN
 
+from event_ids import batch_event_id
+
 
 # ============================================================
 # CONFIGURATION
@@ -532,9 +534,9 @@ def determine_risk_level(score):
 # GENERATE EVENT CODE
 # ============================================================
 
-def generate_event_code(number):
+def generate_event_code(event_df):
 
-    return f"EVENT-{number:04d}"
+    return batch_event_id(event_df)
 
 
 # ============================================================
@@ -542,12 +544,11 @@ def generate_event_code(number):
 # ============================================================
 
 def insert_event(
-    event_df,
-    event_number
+    event_df
 ):
 
     event_code = generate_event_code(
-        event_number
+        event_df
     )
 
 
@@ -680,6 +681,9 @@ def insert_event(
             :status
         )
 
+        ON CONFLICT (event_code) DO UPDATE
+        SET updated_at = CURRENT_TIMESTAMP
+
         RETURNING id;
         """
     )
@@ -733,6 +737,33 @@ def insert_event(
 
 
         event_id = result.scalar_one()
+
+    duration_hours = max(
+        0.0,
+        (last_detected - first_detected).total_seconds() / 3600,
+    )
+    try:
+        from ml.inference.service import predict_and_persist
+
+        predict_and_persist(
+            event_code,
+            {
+                "frp_mean": float(event_df["frp"].fillna(0).mean()),
+                "frp_max": float(event_df["frp"].fillna(0).max()),
+                "confidence": confidence,
+                "facility_distance": 0,
+                "facility_count": 0,
+                "industrial_ratio": 0,
+                "forest_ratio": 0,
+                "agriculture_ratio": 0,
+                "builtup_ratio": 0,
+                "detection_count": detection_count,
+                "event_duration_hours": duration_hours,
+            },
+            event_code,
+        )
+    except Exception as error:
+        print(f"Prediction failed for {event_code}: {error}")
 
 
     return event_id
@@ -951,9 +982,6 @@ def process_events(df):
     )
 
 
-    event_number = 1
-
-
     for cluster_id in sorted(
 
         df["event_cluster"].unique()
@@ -979,9 +1007,7 @@ def process_events(df):
 
         event_id = insert_event(
 
-            event_df,
-
-            event_number
+            event_df
 
         )
 
@@ -1030,7 +1056,7 @@ def process_events(df):
 
         print(
             generate_event_code(
-                event_number
+                event_df
             )
         )
 
@@ -1070,9 +1096,6 @@ def process_events(df):
             f"Risk level     : "
             f"{risk_level}"
         )
-
-
-        event_number += 1
 
 
 # ============================================================

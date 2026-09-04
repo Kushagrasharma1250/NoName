@@ -6,7 +6,14 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from realtime import get_realtime_events, get_realtime_status, refresh_realtime_data
+from pipeline.jobs import get_job_status, run_job
+from ml.inference.service import get_prediction, predict_and_persist
+from realtime import (
+    get_realtime_event,
+    get_realtime_events,
+    get_realtime_status,
+    refresh_realtime_data,
+)
 
 
 async def realtime_refresh_loop():
@@ -54,6 +61,35 @@ def parse_float(value):
     return None if value == "" else float(value)
 
 
+def realtime_event_detail(event):
+    return {
+        "event_id": event["event_id"],
+        "thermal": {
+            "frp_mean": event["frp_mean"],
+            "frp_max": event["frp_max"],
+            "confidence": event.get("confidence"),
+        },
+        "spatial": {
+            "facility_distance": None,
+            "facility_count": 0,
+        },
+        "land_cover": {
+            "industrial_ratio": None,
+            "forest_ratio": None,
+            "agriculture_ratio": None,
+            "builtup_ratio": None,
+        },
+        "temporal": {
+            "detection_count": event["detection_count"],
+            "event_duration_hours": 0,
+            "recurrence_frequency": 0,
+        },
+        "classification": event.get("classification"),
+        "persistence": event.get("persistence"),
+        "persistence_score": event.get("persistence_score"),
+    }
+
+
 @app.get("/")
 def root():
     return {
@@ -82,6 +118,49 @@ def realtime_refresh():
         raise HTTPException(status_code=502, detail=str(error)) from error
 
 
+@app.get("/pipeline/jobs")
+def pipeline_status():
+    return get_job_status()
+
+
+@app.post("/predictions")
+def create_prediction(payload: dict):
+    event_id = payload.get("event_id")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="event_id is required")
+    model_payload = {
+        key: value for key, value in payload.items() if key not in {"event_id", "event_code"}
+    }
+    try:
+        return predict_and_persist(
+            event_id,
+            model_payload,
+            payload.get("event_code", event_id),
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+
+@app.get("/predictions/{event_id}")
+def prediction_detail(event_id: str):
+    prediction = get_prediction(event_id)
+    if prediction is None:
+        raise HTTPException(status_code=404, detail=f"Prediction for {event_id} not found")
+    return prediction
+
+
+@app.post("/pipeline/jobs/{stage}")
+def run_pipeline_job(stage: str):
+    try:
+        return run_job(stage)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+
 @app.get("/events")
 def get_events():
 
@@ -94,7 +173,7 @@ def get_events():
         }
 
     if not EVENTS_CSV_PATH.exists():
-        return {"events": []}
+        return {"events": [], "count": 0, "source": "BATCH"}
 
     with EVENTS_CSV_PATH.open(
         newline="",
@@ -113,7 +192,9 @@ def get_events():
             )
 
     return {
-        "events": events
+        "events": events,
+        "count": len(events),
+        "source": "BATCH",
     }
 
 
@@ -218,6 +299,10 @@ def get_statistics():
 @app.get("/events/{event_id}")
 def get_event(event_id: str):
 
+    realtime_event = get_realtime_event(event_id)
+    if realtime_event is not None:
+        return realtime_event_detail(realtime_event)
+
     if not EVENT_FEATURES_CSV_PATH.exists():
         raise HTTPException(
             status_code=404,
@@ -262,9 +347,10 @@ def get_event(event_id: str):
         },
         "temporal": {
             "detection_count": int(event["detection_count"]),
-            "duration_hours": parse_float(event["event_duration_hours"]),
+            "event_duration_hours": parse_float(event["event_duration_hours"]),
             "recurrence_frequency": int(event["recurrence_frequency"]),
         },
+        "classification": None,
         "persistence": event["persistence"],
         "persistence_score": int(event["persistence_score"]),
     }

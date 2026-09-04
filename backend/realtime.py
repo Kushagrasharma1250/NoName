@@ -1,5 +1,4 @@
 import csv
-import hashlib
 from io import StringIO
 import json
 import os
@@ -10,6 +9,7 @@ from tempfile import NamedTemporaryFile
 
 import requests
 from dotenv import load_dotenv
+from event_ids import realtime_event_id
 
 load_dotenv()
 
@@ -18,6 +18,50 @@ DATA_DIR = Path(__file__).parent / "data" / "firms"
 LIVE_DATA_PATH = DATA_DIR / "realtime_viirs.csv"
 STATUS_PATH = DATA_DIR / "realtime_status.json"
 REFRESH_LOCK = threading.Lock()
+
+
+def _load_facilities():
+    import pandas as pd
+
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        return pd.DataFrame(columns=["latitude", "longitude"])
+    try:
+        from sqlalchemy import create_engine, text
+
+        with create_engine(database_url, pool_pre_ping=True).connect() as connection:
+            return pd.read_sql(
+                text("SELECT latitude, longitude FROM industrial_facilities"),
+                connection,
+            )
+    except Exception:
+        return pd.DataFrame(columns=["latitude", "longitude"])
+
+
+def _number(value, default=0.0):
+    try:
+        if value is None or value == "":
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _confidence(value):
+    confidence = _number(value)
+    return confidence / 100 if confidence > 1 else confidence
+
+
+def _temporal_groups(rows):
+    groups = {}
+    for row in rows:
+        key = (
+            round(_number(row.get("latitude")), 3),
+            round(_number(row.get("longitude")), 3),
+        )
+        timestamp = f'{row.get("acq_date", "")} {str(row.get("acq_time", "")).zfill(4)[:4]}'
+        groups.setdefault(key, []).append(timestamp)
+    return groups
 
 
 def _config() -> dict[str, str | int]:
@@ -134,6 +178,11 @@ def refresh_realtime_data() -> dict:
             fetched_count=len(rows),
         )
         _write_atomic(STATUS_PATH, json.dumps(status, indent=2))
+        try:
+            get_realtime_events()
+        except Exception as error:
+            status["last_error"] = f"Prediction refresh failed: {error}"
+            _write_atomic(STATUS_PATH, json.dumps(status, indent=2))
     return status
 
 
@@ -155,9 +204,17 @@ def get_realtime_status() -> dict:
 def get_realtime_events() -> list[dict]:
     if not LIVE_DATA_PATH.exists():
         return []
+    from feature_engineering.landcover import calculate_landcover_features
+    from feature_engineering.spatial import calculate_spatial_features
+    from ml.inference.service import predict_and_persist
+    from persistence.detector import calculate_persistence, calculate_persistence_score
+
     with LIVE_DATA_PATH.open(newline="", encoding="utf-8") as data_file:
         candidates = []
-        for row in csv.DictReader(data_file):
+        rows = list(csv.DictReader(data_file))
+        facilities = _load_facilities()
+        temporal_groups = _temporal_groups(rows)
+        for row in rows:
             try:
                 latitude = float(row["latitude"])
                 longitude = float(row["longitude"])
@@ -167,35 +224,80 @@ def get_realtime_events() -> list[dict]:
                 frp = float(row.get("frp", 0) or 0)
             except (TypeError, ValueError):
                 frp = 0
-            event_key = f"{row.get('acq_date', '')}:{latitude:.3f}:{longitude:.3f}"
-            event_id = "NRT-" + hashlib.sha1(event_key.encode()).hexdigest()[:10].upper()
+            event_id = realtime_event_id(row)
+            spatial = calculate_spatial_features(
+                {"latitude": latitude, "longitude": longitude}, facilities
+            )
+            landcover = calculate_landcover_features(
+                {"latitude": latitude, "longitude": longitude}
+            )
+            group = temporal_groups[
+                (round(latitude, 3), round(longitude, 3))
+            ]
+            detection_count = len(group)
+            duration_hours = 0.0
+            if len(group) > 1:
+                import pandas as pd
+
+                timestamps = pd.to_datetime(group, errors="coerce")
+                duration_hours = max(
+                    0.0, (timestamps.max() - timestamps.min()).total_seconds() / 3600
+                )
+            persistence = calculate_persistence(
+                detection_count, duration_hours, 0
+            )
+            persistence_score = calculate_persistence_score(
+                detection_count, duration_hours, 0
+            )
+            prediction = predict_and_persist(
+                event_id,
+                {
+                    "frp_mean": frp,
+                    "frp_max": frp,
+                    "confidence": _confidence(row.get("confidence")),
+                    "facility_distance": spatial["facility_distance_m"] or 0,
+                    "facility_count": spatial["facilities_within_5km"],
+                    "industrial_ratio": landcover["industrial_ratio"] or 0,
+                    "forest_ratio": landcover["forest_ratio"] or 0,
+                    "agriculture_ratio": landcover["agriculture_ratio"] or 0,
+                    "builtup_ratio": landcover["builtup_ratio"] or 0,
+                    "detection_count": detection_count,
+                    "event_duration_hours": duration_hours,
+                },
+            )
             candidates.append(
                 {
                     "event_id": event_id,
                     "latitude": latitude,
                     "longitude": longitude,
-                    "detection_count": 1,
+                    "detection_count": detection_count,
                     "frp": frp,
+                    "frp_mean": frp,
+                    "frp_max": frp,
+                    "confidence": row.get("confidence") or None,
+                    "classification": prediction["prediction"],
+                    "prediction_confidence": prediction["prediction_confidence"],
+                    "persistence": (
+                        "PERSISTENT" if persistence == "PERSISTENT" else "TRANSIENT"
+                    ),
+                    "persistence_score": persistence_score,
+                    "high_risk": (
+                        prediction["prediction"] == "INDUSTRIAL_FIRE"
+                        and float(prediction["prediction_confidence"]) >= 0.65
+                    ) or persistence_score >= 70,
                 }
             )
 
     # Keep the dashboard feed balanced and bounded for the MVP.
     candidates.sort(key=lambda event: (-event["frp"], event["event_id"]))
     selected = candidates[:300]
-    for index, event in enumerate(selected):
-        if index < 100:
-            classification = "INDUSTRIAL_FIRE"
-        elif index < 200:
-            classification = "WILDFIRE"
-        else:
-            classification = "OTHER_THERMAL_ANOMALY"
-        persistent = index % 7 == 0
-        high_risk = index % 5 == 0
-        event.update(
-            classification=classification,
-            persistence="PERSISTENT" if persistent else "TRANSIENT",
-            persistence_score=80 if persistent else 20,
-            high_risk=high_risk,
-        )
+    for event in selected:
         event.pop("frp")
     return selected
+
+
+def get_realtime_event(event_id: str) -> dict | None:
+    return next(
+        (event for event in get_realtime_events() if event["event_id"] == event_id),
+        None,
+    )

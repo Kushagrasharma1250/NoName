@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS industrial_facilities (
 -- THERMAL ANOMALIES
 -- =========================================================
 
+-- Canonical application schema. NASA FIRMS raw names are mapped to these
+-- normalized columns by firm_ingestion.py before persistence.
+
 CREATE TABLE IF NOT EXISTS thermal_anomalies (
 
     id SERIAL PRIMARY KEY,
