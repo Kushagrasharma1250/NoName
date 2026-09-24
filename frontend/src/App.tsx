@@ -30,30 +30,35 @@ export const App: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const [healthRes, statsRes, eventsRes, persistentRes, realtimeRes] = await Promise.all([
-        fetchHealth(),
-        fetchStatistics(),
-        fetchEvents(),
-        fetchPersistentEvents(),
-        fetchRealtimeStatus(),
-      ]);
+    const results = await Promise.allSettled([
+      fetchHealth(),
+      fetchStatistics(),
+      fetchEvents(),
+      fetchPersistentEvents(),
+      fetchRealtimeStatus(),
+    ]);
 
-      setIsHealthy(healthRes);
-      setStats(statsRes);
-      setEvents(eventsRes);
-      setPersistentEvents(persistentRes);
-      setRealtimeStatus(realtimeRes);
+    const [healthResult, statsResult, eventsResult, persistentResult, realtimeResult] = results;
 
-      // Auto-select first event if none selected
-      if (eventsRes.length > 0 && !selectedEventId) {
-        setSelectedEventId(eventsRes[0].event_id);
-      }
-    } catch (err) {
-      console.error('Error loading dashboard data', err);
-    } finally {
-      setLoading(false);
+    if (healthResult.status === 'fulfilled') {
+      setIsHealthy(healthResult.value);
+    } else {
+      setIsHealthy(false);
     }
+    if (statsResult.status === 'fulfilled') setStats(statsResult.value);
+    if (eventsResult.status === 'fulfilled') {
+      setEvents(eventsResult.value);
+      if (eventsResult.value.length > 0 && !selectedEventId) {
+        setSelectedEventId(eventsResult.value[0].event_id);
+      }
+    }
+    if (persistentResult.status === 'fulfilled') setPersistentEvents(persistentResult.value);
+    if (realtimeResult.status === 'fulfilled') setRealtimeStatus(realtimeResult.value);
+
+    results.forEach((result) => {
+      if (result.status === 'rejected') console.error('Error loading dashboard data', result.reason);
+    });
+    setLoading(false);
   };
 
   const refreshData = async () => {
